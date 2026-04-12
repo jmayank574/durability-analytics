@@ -1,0 +1,54 @@
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  exports_dir: "data/exports"
+  sample_rate_hz: 100
+  resample_hz: 100
+
+  road_types:   ["asphalt", "cobblestone", "dirt", "unpaved"]
+  road_quality: ["good", "regular", "bad"]
+
+signal_processing:
+  fft_window_sec: 2.0
+  fft_overlap: 0.5
+  freq_min_hz: 0.5
+  freq_max_hz: 50.0
+
+fatigue:
+  sn_k: 1.0e14
+  sn_m: 3.0
+  damage_threshold: 0.001
+  weibull_fit_method: "MLE"
+
+ml:
+  test_split: 0.2
+  random_seed: 42
+  window_size_samples: 200
+  window_stride_samples: 50
+
+  classifier:
+    type: "rf"
+    n_estimators: 200
+    max_depth: 20
+
+  regressor:
+    type: "xgboost"
+    n_estimators: 200
+    max_depth: 6
+    learning_rate: 0.05
+
+  clustering:
+    n_clusters: 4
+
+duty_cycle:
+  target_damage_fraction: 1.0
+  compression_target: 0.05
+
+export:
+  files:
+    fleet_map:          "fleet_map.json"
+    damage_summary:     "damage_summary.json"
+    psd_spectra:        "psd_spectra.json"
+    ml_results:         "ml_results.json"
+    duty_cycle:         "duty_cycle.json"
+    archetype_clusters: "archetype_clusters.json"
