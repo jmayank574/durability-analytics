@@ -19,6 +19,10 @@ fatigue:
   sn_m: 3.0
   damage_threshold: 0.001
   weibull_fit_method: "MLE"
+  # Goodman mean stress correction: set to material ultimate strength proxy (m/s²).
+  # null = disabled (current behaviour). A value of ~3× max observed range is a
+  # conservative starting point; calibrate to actual component S-N data.
+  goodman_ultimate: null
 
 ml:
   test_split: 0.2

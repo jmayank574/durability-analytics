@@ -28,7 +28,9 @@ export default function StatCards({ data }) {
     },
     {
       label:  "Cobblestone vs asphalt",
-      value:  "10.1x",
+      value:  byRoad.cobblestone?.damage_relative_to_asphalt != null
+        ? `${byRoad.cobblestone.damage_relative_to_asphalt.toFixed(1)}x`
+        : "—",
       sub:    "Miner's Rule damage ratio",
       color:  "text-orange-400",
       bg:     "bg-orange-900/20",
@@ -36,7 +38,9 @@ export default function StatCards({ data }) {
     },
     {
       label:  "Dirt vs asphalt",
-      value:  "5.8x",
+      value:  byRoad.dirt?.damage_relative_to_asphalt != null
+        ? `${byRoad.dirt.damage_relative_to_asphalt.toFixed(1)}x`
+        : "—",
       sub:    "Miner's Rule damage ratio",
       color:  "text-green-300",
       bg:     "bg-slate-700/40",

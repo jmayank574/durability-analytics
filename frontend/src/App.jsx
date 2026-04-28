@@ -2,6 +2,7 @@ import { useData } from "./hooks/useData";
 import StatCards from "./components/StatCards";
 import DamageChart from "./components/DamageChart";
 import PSDChart from "./components/PSDChart";
+import RainflowChart from "./components/RainflowChart";
 import ClassifierResults from "./components/ClassifierResults";
 import FleetMap from "./components/FleetMap";
 import ArchetypePanel from "./components/ArchetypePanel";
@@ -54,6 +55,7 @@ export default function App() {
           <DamageChart data={data.damage} />
           <PSDChart data={data.psd} />
         </div>
+        <RainflowChart data={data.damage} />
         <FleetMap data={data.fleet} />
         <div className="grid grid-cols-2 gap-6">
           <ClassifierResults data={data.ml} />

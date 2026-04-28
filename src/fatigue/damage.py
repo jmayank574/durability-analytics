@@ -97,6 +97,7 @@ def miners_rule(
     sn_k:              float,
     sn_m:              float,
     damage_threshold:  float = 0.001,
+    goodman_ultimate:  float = None,
 ) -> dict:
     """
     Compute cumulative fatigue damage using Miner's Linear Damage Rule.
@@ -110,17 +111,18 @@ def miners_rule(
       S_i ≈ cycle range (m/s²) — proportional to structural stress
       K, m = material S-N curve constants (generic steel here)
 
-    Args:
-        cycles           : list of (range, mean, count) from rainflow
-        sn_k             : S-N intercept constant
-        sn_m             : S-N slope exponent (3-5 for metals)
-        damage_threshold : ignore cycles below this range (noise floor)
+    Goodman mean stress correction (optional):
+      Tensile mean stress reduces fatigue life. The modified Goodman line:
+        S_a_eff = S_a / (1 - S_m / S_u)
+      where S_a = amplitude (range/2), S_m = mean stress, S_u = ultimate.
+      Enable by setting goodman_ultimate in config.yaml.
 
-    Returns:
-        damage_index : D (dimensionless)
-            D < 1.0  component survives
-            D = 1.0  theoretical failure
-            Higher D = more severe usage (used for comparison)
+    Args:
+        cycles            : list of (range, mean, count) from rainflow
+        sn_k              : S-N intercept constant
+        sn_m              : S-N slope exponent (3-5 for metals)
+        damage_threshold  : ignore cycles below this range (noise floor)
+        goodman_ultimate  : ultimate strength proxy (m/s²); None = disabled
     """
     if not cycles:
         return {
@@ -131,7 +133,8 @@ def miners_rule(
 
     sn_k = float(sn_k)
     sn_m = float(sn_m)
-    damage_threshold = float(damage_threshold)
+    damage_threshold  = float(damage_threshold)
+    goodman_ultimate  = float(goodman_ultimate) if goodman_ultimate is not None else None
 
     total_damage = 0.0
     n_damaging   = 0
@@ -145,10 +148,19 @@ def miners_rule(
         if cycle_range < damage_threshold:
             continue
 
-        # Cycles to failure at this amplitude
-        n_failure = sn_k / (cycle_range ** sn_m)
+        effective_range = cycle_range
+        if goodman_ultimate is not None:
+            # Goodman correction: boost effective amplitude by mean stress ratio.
+            # Clamp denominator to avoid division by zero on extreme mean values.
+            amplitude  = cycle_range / 2.0
+            mean_ratio = abs(cycle_mean) / goodman_ultimate
+            mean_ratio = min(mean_ratio, 0.99)
+            effective_amplitude = amplitude / (1.0 - mean_ratio)
+            effective_range     = effective_amplitude * 2.0
 
-        # Damage from this set of cycles
+        # Cycles to failure at this (corrected) amplitude
+        n_failure = sn_k / (effective_range ** sn_m)
+
         damage = count / n_failure
         total_damage += damage
         n_damaging   += 1
@@ -252,10 +264,11 @@ def compute_damage_index(
         return {"damage_index": 0.0, "rainflow": rf, "miners": {}}
 
     miners = miners_rule(
-        cycles           = rf["cycles"],
-        sn_k             = fatigue_cfg["sn_k"],
-        sn_m             = fatigue_cfg["sn_m"],
-        damage_threshold = fatigue_cfg["damage_threshold"],
+        cycles            = rf["cycles"],
+        sn_k              = fatigue_cfg["sn_k"],
+        sn_m              = fatigue_cfg["sn_m"],
+        damage_threshold  = fatigue_cfg["damage_threshold"],
+        goodman_ultimate  = fatigue_cfg.get("goodman_ultimate"),
     )
 
     return {
@@ -325,6 +338,19 @@ def compute_damage_per_dataset(
             result["damage_index"] / (len(signal) / 360000.0), 4
         ) if len(signal) > 0 else 0.0
 
+        # Damage per km: more useful than per-hour for durability targeting
+        # because fatigue accumulates with road distance, not elapsed time.
+        if "speed" in df.columns:
+            mean_speed_mps = float(df["speed"].dropna().mean())
+            distance_km    = mean_speed_mps * result["duration_sec"] / 1000.0
+            result["distance_km"]    = round(distance_km, 2)
+            result["damage_per_km"]  = round(
+                result["damage_index"] / distance_km, 8
+            ) if distance_km > 0 else 0.0
+        else:
+            result["distance_km"]   = None
+            result["damage_per_km"] = None
+
         # Per road class breakdown
         if "road_type" in df.columns:
             result["by_road_class"] = {
@@ -384,6 +410,8 @@ def build_damage_export(datasets: dict, config: dict) -> dict:
             k: {
                 "damage_index":    v["damage_index"],
                 "damage_per_hour": v["damage_per_hour"],
+                "damage_per_km":   v.get("damage_per_km"),
+                "distance_km":     v.get("distance_km"),
                 "duration_sec":    v["duration_sec"],
                 "n_cycles":        v["rainflow"]["n_cycles"],
                 "range_max":       v["rainflow"]["range_max"],

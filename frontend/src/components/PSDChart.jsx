@@ -1,6 +1,6 @@
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 
 const COLORS = {
@@ -11,6 +11,7 @@ const COLORS = {
 
 export default function PSDChart({ data }) {
   const byRoad = data.by_road_class || {};
+  const resonantFreq = Object.values(data.transmissibility || {})[0]?.resonant_freq_hz ?? null;
 
   // Sample every 5th frequency point for performance
   const firstRoad = Object.values(byRoad)[0];
@@ -51,6 +52,11 @@ export default function PSDChart({ data }) {
       </h2>
       <p className="text-slate-400 text-xs mb-5">
         Welch's method · below suspension sensor · log₁₀ scale
+        {resonantFreq != null && (
+          <span className="text-red-400 ml-2">
+            · resonance {resonantFreq.toFixed(1)} Hz
+          </span>
+        )}
       </p>
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={chartData}>
@@ -89,6 +95,20 @@ export default function PSDChart({ data }) {
           <Legend
             wrapperStyle={{ fontSize: "11px", color: "#94a3b8" }}
           />
+          {resonantFreq != null && (
+            <ReferenceLine
+              x={parseFloat(resonantFreq.toFixed(1))}
+              stroke="#ef4444"
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
+              label={{
+                value:    `${resonantFreq.toFixed(1)} Hz`,
+                position: "top",
+                fill:     "#ef4444",
+                fontSize: 9,
+              }}
+            />
+          )}
           {Object.keys(byRoad).map(road => (
             <Line
               key={road}
