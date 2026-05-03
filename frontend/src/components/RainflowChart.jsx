@@ -86,8 +86,7 @@ export default function RainflowChart({ data }) {
         </div>
       </div>
       <p className="text-slate-400 text-xs mb-5">
-        ASTM E1049 · cycle range histogram · log₁₀ count · high-amplitude tail
-        drives fatigue damage disproportionately (S³ exponent)
+        ASTM E1049 · cycle range histogram · log₁₀ scale
       </p>
 
       <ResponsiveContainer width="100%" height={200}>
@@ -147,27 +146,6 @@ export default function RainflowChart({ data }) {
         </AreaChart>
       </ResponsiveContainer>
 
-      <div className="mt-4 pt-3 border-t border-slate-700 grid grid-cols-3 gap-4">
-        {Object.entries(byRoad).map(([road, vals]) => (
-          <div key={road}>
-            <p className="text-xs font-medium mb-1" style={{ color: COLORS[road] }}>
-              {road.charAt(0).toUpperCase() + road.slice(1)}
-            </p>
-            <p className="text-slate-400 text-xs">
-              Peak range: <span className="text-slate-200">{vals.range_max?.toFixed(1) ?? "—"} m/s²</span>
-            </p>
-            <p className="text-slate-400 text-xs">
-              Cycles: <span className="text-slate-200">{Math.round(vals.n_cycles ?? 0).toLocaleString()}</span>
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <p className="text-slate-500 text-xs mt-3 leading-relaxed">
-        Cobblestone's extended high-amplitude tail explains its 10× damage ratio — rare but extreme
-        cycles dominate Miner's sum via the S³ exponent. A component designed for the asphalt
-        envelope will be under-designed for cobblestone usage.
-      </p>
     </div>
   );
 }

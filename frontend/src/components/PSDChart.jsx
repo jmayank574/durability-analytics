@@ -51,10 +51,10 @@ export default function PSDChart({ data }) {
         Power Spectral Density by road class
       </h2>
       <p className="text-slate-400 text-xs mb-5">
-        Welch's method · below suspension sensor · log₁₀ scale
+        Below suspension · log₁₀ scale
         {resonantFreq != null && (
           <span className="text-red-400 ml-2">
-            · resonance {resonantFreq.toFixed(1)} Hz
+            · resonance at {resonantFreq.toFixed(1)} Hz
           </span>
         )}
       </p>

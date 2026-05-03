@@ -70,18 +70,14 @@ export default function DamageChart({ data }) {
         ))}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-slate-700">
-        <p className="text-slate-400 text-xs leading-relaxed">
-          Damage scales as amplitude³ (Miner's Rule, m=3).
-          {cobblestone && (
-            <> 1 hour on cobblestone = same fatigue as{" "}
-              <span className="text-orange-400 font-medium">
-                {cobblestone.ratio.toFixed(0)} hours on asphalt
-              </span>.
-            </>
-          )}
-        </p>
-      </div>
+      {cobblestone && (
+        <div className="mt-5 pt-4 border-t border-slate-700 flex items-center gap-2">
+          <span className="text-slate-500 text-xs">Equivalent exposure:</span>
+          <span className="text-orange-400 text-xs font-semibold">
+            1 hr cobblestone = {cobblestone.ratio.toFixed(0)} hrs asphalt
+          </span>
+        </div>
+      )}
     </div>
   );
 }

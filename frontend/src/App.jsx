@@ -6,6 +6,7 @@ import RainflowChart from "./components/RainflowChart";
 import ClassifierResults from "./components/ClassifierResults";
 import FleetMap from "./components/FleetMap";
 import ArchetypePanel from "./components/ArchetypePanel";
+import ExportPDF from "./components/ExportPDF";
 
 export default function App() {
   const { data, loading, error } = useData();
@@ -32,11 +33,10 @@ export default function App() {
               Durability Analytics Platform
             </h1>
             <p className="text-slate-400 text-xs mt-0.5">
-              PVS Dataset · Rainflow · Miner's Rule · 
-              Weibull · Random Forest · XGBoost
+              PVS Dataset · 144,036 samples · 100 Hz · 24 min
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <span className="px-3 py-1 bg-green-900/40 text-green-400
                            border border-green-700/40 rounded-full text-xs">
               Pipeline live
@@ -45,6 +45,7 @@ export default function App() {
                            border border-slate-700 rounded-full text-xs">
               PVS 1 · 144,036 samples · 24 min
             </span>
+            <ExportPDF data={data} />
           </div>
         </div>
       </header>
@@ -65,9 +66,7 @@ export default function App() {
 
       <footer className="border-t border-slate-700 px-8 py-3 mt-6">
         <div className="max-w-screen-xl mx-auto text-slate-600 text-xs">
-          Vehicle Durability Data Analytics · 
-          Rainflow counting · Miner's Rule · Weibull · 
-          Random Forest · XGBoost · K-Means
+          Rivian Durability Analytics · PVS Dataset
         </div>
       </footer>
 

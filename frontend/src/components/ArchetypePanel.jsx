@@ -33,8 +33,7 @@ export default function ArchetypePanel({ data }) {
         Usage archetype clusters
       </h2>
       <p className="text-slate-400 text-xs mb-5">
-        K-Means · k={clustering.n_clusters} · 
-        {clustering.features_used?.join(", ")}
+        K-Means · k={clustering.n_clusters}
       </p>
 
       {/* Cluster cards */}
@@ -77,22 +76,6 @@ export default function ArchetypePanel({ data }) {
         ))}
       </div>
 
-      {/* Insight box */}
-      <div className="bg-slate-900/50 border border-slate-700 
-                      rounded-lg p-3">
-        <p className="text-slate-400 text-xs leading-relaxed">
-          <span className="text-white font-medium">
-            Durability insight:
-          </span>{" "}
-          Usage archetypes define the customer population envelope. 
-          The off-road/rough cluster accumulates{" "}
-          <span className="text-orange-400 font-medium">
-            10x more fatigue damage
-          </span>{" "}
-          per hour than the highway cluster — driving component 
-          design targets and warranty planning.
-        </p>
-      </div>
     </div>
   );
 }
