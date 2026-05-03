@@ -1,6 +1,6 @@
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, ResponsiveContainer,
 } from "recharts";
 
 const COLORS = {
@@ -128,7 +128,6 @@ export default function RainflowChart({ data }) {
             }}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: "11px", color: "#94a3b8" }} />
           {Object.keys(byRoad)
             .filter(road => COLORS[road])
             .map(road => (

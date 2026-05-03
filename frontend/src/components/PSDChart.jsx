@@ -70,13 +70,6 @@ export default function PSDChart({ data }) {
             tick={{ fill: "#94a3b8", fontSize: 11 }}
             axisLine={false}
             tickLine={false}
-            label={{
-              value: "Frequency (Hz)",
-              position: "insideBottom",
-              fill: "#64748b",
-              fontSize: 10,
-              dy: 10,
-            }}
           />
           <YAxis
             tick={{ fill: "#94a3b8", fontSize: 11 }}
