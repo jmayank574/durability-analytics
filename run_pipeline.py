@@ -77,21 +77,36 @@ def main():
 
     processed_dir = Path(config["data"]["processed_dir"])
     processed_files = list(processed_dir.glob("pvs*.csv"))
+    raw_dir         = Path(config["data"]["raw_dir"])
+    raw_mpu_files   = list(raw_dir.glob("*dataset_gps_mpu_left.csv"))
 
-    if processed_files:
-        print(f"  Found {len(processed_files)} cached processed files")
-        print(f"  Loading from cache (faster than re-processing raw CSVs)")
+    cache_complete = (
+        len(processed_files) > 0 and
+        len(processed_files) == len(raw_mpu_files)
+    )
+
+    if cache_complete:
+        print(f"  Found {len(processed_files)} cached processed files — loading from cache")
         datasets = load_processed(config)
     else:
-        print(f"  No cache found — loading from raw CSVs")
+        if processed_files:
+            print(f"  Cache mismatch ({len(processed_files)} processed vs "
+                  f"{len(raw_mpu_files)} raw) — re-ingesting all datasets")
+        else:
+            print(f"  No cache found — loading from raw CSVs")
         try:
             datasets = load_pvs_dataset(config)
             save_processed(datasets, config)
+            # Invalidate feature window cache — windows are now stale
+            windows_cache = Path(config["data"]["processed_dir"]) / "feature_windows.csv"
+            if windows_cache.exists():
+                windows_cache.unlink()
+                print(f"  Feature window cache cleared (stale after re-ingestion)")
         except FileNotFoundError as e:
             print(f"\n  ERROR: {e}")
             print("\n  To get started:")
             print("  1. Download PVS dataset CSVs from Kaggle")
-            print("  2. Place them in data/raw/")
+            print("  2. Place them in data/raw/ with pvs2_ prefix for second dataset")
             print("  3. Re-run this script")
             sys.exit(1)
 
