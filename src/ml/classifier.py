@@ -352,9 +352,10 @@ def cluster_usage_archetypes(
             profile["road_distribution"] = road_dist.to_dict()
 
         # Assign archetype label based on RMS and speed
+        # Note: feat "speed_mean" is stored as "speed_mean_mean" in profile
         if "vib_rms" in available and "speed_mean" in available:
             rms_val   = profile.get("vib_rms_mean", 0)
-            spd_val   = profile.get("speed_mean", 0)
+            spd_val   = profile.get("speed_mean_mean", 0)
             profile["archetype"] = _label_archetype(rms_val, spd_val)
 
         cluster_profiles.append(profile)

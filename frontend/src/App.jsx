@@ -33,7 +33,14 @@ export default function App() {
               Durability Analytics Platform
             </h1>
             <p className="text-slate-400 text-xs mt-0.5">
-              PVS Dataset · {data.fleet?.datasets?.length ?? 1} scenario{(data.fleet?.datasets?.length ?? 1) > 1 ? "s" : ""} · VW Saveiro · Driver 1 · 100 Hz
+              {(() => {
+                const n = data.fleet?.datasets?.length ?? 1;
+                const vehicles = n <= 3 ? "VW Saveiro"
+                  : n <= 6 ? "VW Saveiro · Fiat Bravo"
+                  : "VW Saveiro · Fiat Bravo · Fiat Palio";
+                const nv = n <= 3 ? 1 : n <= 6 ? 2 : 3;
+                return `PVS Dataset · ${n} scenario${n > 1 ? "s" : ""} · ${nv} vehicle${nv > 1 ? "s" : ""} · ${vehicles} · 100 Hz`;
+              })()}
             </p>
           </div>
           <div className="flex gap-2 items-center">
