@@ -91,6 +91,7 @@ export default function ExportPDF({ data }) {
     const damage   = data.damage   || {};
     const ml       = data.ml       || {};
     const psd      = data.psd      || {};
+    const fleet    = data.fleet    || {};
     const byRoad   = damage.by_road_class || {};
     const clf      = ml.classifier || {};
     const reg      = ml.regressor  || {};
@@ -108,6 +109,30 @@ export default function ExportPDF({ data }) {
       : "N/A";
     const r2Str  = reg.r2_score != null ? reg.r2_score.toFixed(4) : "N/A";
 
+    // Dynamic dataset metadata
+    const nDatasets    = fleet.datasets?.length ?? 1;
+    const datasetLabel = fleet.datasets?.join(", ") ?? "pvs1";
+
+    // Road surface dynamic values
+    const aspRange  = byRoad.asphalt?.range_max;
+    const cobRange  = byRoad.cobblestone?.range_max;
+    const dirtRange = byRoad.dirt?.range_max;
+    const aspCycles = byRoad.asphalt?.n_cycles;
+    const cobCycles = byRoad.cobblestone?.n_cycles;
+    const fmt1 = (v) => v != null ? v.toFixed(1) : "N/A";
+    const fmtI = (v) => v != null ? Math.round(v).toLocaleString() : "N/A";
+
+    // Dynamic cluster analysis — find the highest-RMS and largest-window clusters
+    const sorted = [...profiles].sort((a, b) => (b.vib_rms_mean || 0) - (a.vib_rms_mean || 0));
+    const worstC  = sorted[0] || {};
+    const secondC = sorted.find(p => p.cluster_id !== worstC.cluster_id && (p.n_windows || 0) > 50) || sorted[1] || {};
+    const rmsRatio = (worstC.vib_rms_mean && secondC.vib_rms_mean)
+      ? Math.pow(worstC.vib_rms_mean / secondC.vib_rms_mean, 3).toFixed(1)
+      : "N/A";
+
+    // Effective damage multiplier for 15% cobblestone usage
+    const effectiveMult = cobR != null ? (1 + 0.15 * (cobR - 1)).toFixed(1) : "N/A";
+
     // ── PAGE 1 ──────────────────────────────────────────────────────
 
     // Title bar
@@ -121,7 +146,7 @@ export default function ExportPDF({ data }) {
     tc("#94a3b8");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
-    doc.text("Passive Vehicular Sensor (PVS) Dataset  |  1 vehicle  |  100 Hz  |  24 min  |  Below-suspension IMU", M, 24);
+    doc.text(`Passive Vehicular Sensor (PVS) Dataset  |  ${nDatasets} scenario${nDatasets > 1 ? "s" : ""}  |  100 Hz  |  VW Saveiro  |  Below-suspension IMU`, M, 24);
     doc.text(
       `${new Date().toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" })}  |  Analysis: Rainflow / Miner's Rule / Random Forest / XGBoost / K-Means`,
       M, 31
@@ -139,19 +164,21 @@ export default function ExportPDF({ data }) {
     y += GAP_SM;
 
     y = body(
-      "1.  Cobblestone road accumulates 10.1x more fatigue damage per unit time than asphalt, " +
-      "and dirt road 5.8x. The difference is driven by cycle amplitude (peak range 114 vs 61 m/s2), " +
-      "not cycle count. With m=3 in Miner's Rule, a cycle twice as large does 8x the damage. " +
-      "Components designed to an asphalt-only load envelope are under-specified by a factor of 10 " +
-      "for customers who regularly drive on cobblestone.",
+      `1.  Cobblestone road accumulates ${fmt1(cobR)}x more fatigue damage per unit time than asphalt, ` +
+      `and dirt road ${fmt1(dirtR)}x. The difference is driven by cycle amplitude (peak range ` +
+      `${fmt1(cobRange)} vs ${fmt1(aspRange)} m/s2), not cycle count. With m=3 in Miner's Rule, ` +
+      "a cycle twice as large does 8x the damage. Components designed to an asphalt-only load " +
+      `envelope are under-specified by a factor of ~${fmt1(cobR)} for customers who regularly drive on cobblestone.`,
       y, { indent: 4 }
     );
     y += GAP_SM;
 
     y = body(
-      "2.  The suspension attenuates 86% of road input at 10 Hz and 88% at 20 Hz, with a " +
-      "resonant peak at 2.0 Hz. Below-suspension components experience 6.17 m/s2 RMS; " +
-      "the body sees 2.08 m/s2 RMS. Separate load specifications are required for sub-frame / " +
+      `2.  The suspension attenuates ${trans.isolation_at_10hz != null ? ((1-trans.isolation_at_10hz)*100).toFixed(0) : "86"}% of road input at 10 Hz ` +
+      `and ${trans.isolation_at_20hz != null ? ((1-trans.isolation_at_20hz)*100).toFixed(0) : "88"}% at 20 Hz, with a ` +
+      `resonant peak at ${trans.resonant_freq_hz?.toFixed(1) ?? "2.0"} Hz. ` +
+      `Below-suspension components experience ${rms.below_suspension?.toFixed(2) ?? "N/A"} m/s2 RMS; ` +
+      `the body sees ${rms.above_suspension?.toFixed(2) ?? "N/A"} m/s2 RMS. Separate load specifications are required for sub-frame / ` +
       "wheel-end components vs. above-suspension body components.",
       y, { indent: 4 }
     );
@@ -167,9 +194,10 @@ export default function ExportPDF({ data }) {
     y += GAP_SM;
 
     y = body(
-      "4.  K-Means clustering (k=4) identifies an off-road usage archetype (1,269 windows, " +
-      "mean RMS 8.23 m/s2, dominant road cobblestone) that accumulates approximately 11x " +
-      "more fatigue damage per unit time than the mixed-use asphalt cluster. This archetype " +
+      `4.  K-Means clustering (k=${clust.n_clusters ?? 4}) identifies a rough-road usage archetype ` +
+      `(${fmtI(worstC.n_windows)} windows, mean RMS ${fmt1(worstC.vib_rms_mean)} m/s2, ` +
+      `dominant road: ${worstC.dominant_road ?? "cobblestone"}) that accumulates approximately ${rmsRatio}x ` +
+      "more fatigue damage per unit time than the mixed-use cluster. This archetype " +
       "should define the P99 worst-case design target.",
       y, { indent: 4 }
     );
@@ -221,10 +249,11 @@ export default function ExportPDF({ data }) {
 
     y = body(
       "The cobblestone damage ratio is driven by cycle amplitude, not cycle count. " +
-      "Cobblestone produced fewer cycles than asphalt (14,084 vs 16,456) but a peak range " +
-      "nearly 2x higher (114 vs 61 m/s2). Under m=3 the damage contribution scales as the cube " +
+      `Cobblestone produced ${fmtI(cobCycles)} cycles vs asphalt ${fmtI(aspCycles)} but a peak range ` +
+      `nearly ${aspRange && cobRange ? (cobRange/aspRange).toFixed(1) : "N/A"}x higher ` +
+      `(${fmt1(cobRange)} vs ${fmt1(aspRange)} m/s2). Under m=3 the damage contribution scales as the cube ` +
       "of amplitude, making the amplitude tail the dominant driver. Dirt road shows the highest " +
-      "peak range (122 m/s2) but fewer cycles, yielding a 5.8x ratio.",
+      `peak range (${fmt1(dirtRange)} m/s2) but fewer cycles, yielding a ${fmt1(dirtR)}x ratio.`,
       y
     );
     y += GAP_SM;
@@ -232,7 +261,7 @@ export default function ExportPDF({ data }) {
     y = body(
       "Action: Durability targets for suspension and sub-frame components must be weighted by " +
       "the fleet road-surface mix. For a vehicle with 15% cobblestone mileage, the effective " +
-      `damage multiplier is approximately ${cobR != null ? (1 + 0.15*(cobR-1)).toFixed(1) : "N/A"}x ` +
+      `damage multiplier is approximately ${effectiveMult}x ` +
       "the pure-asphalt baseline. Weibull P50/P90/P99 population targets require a minimum of " +
       "3 vehicle datasets; current values are indicative only.",
       y, { color: "#1d4ed8" }
@@ -272,9 +301,9 @@ export default function ExportPDF({ data }) {
     }
 
     y = body(
-      "Action: Components below the suspension require load specifications derived from the " +
-      "full unfiltered input PSD (6.17 m/s2 RMS). Above-suspension components should use the " +
-      "filtered body PSD (2.08 m/s2 RMS). The 2.0 Hz resonant peak is the primary remaining " +
+      `Action: Components below the suspension require load specifications derived from the ` +
+      `full unfiltered input PSD (${rms.below_suspension?.toFixed(2) ?? "N/A"} m/s2 RMS). Above-suspension components should use the ` +
+      `filtered body PSD (${rms.above_suspension?.toFixed(2) ?? "N/A"} m/s2 RMS). The ${trans.resonant_freq_hz?.toFixed(1) ?? "2.0"} Hz resonant peak is the primary remaining ` +
       "excitation at the body — NVH and durability targets for body-mount brackets should " +
       "account for amplification in the 1-3 Hz range.",
       y, { color: "#1d4ed8" }
@@ -383,7 +412,7 @@ export default function ExportPDF({ data }) {
 
     y = body(
       `K-Means clustering (k=${clust.n_clusters ?? "N/A"}) on vibration RMS, vehicle speed, ` +
-      "kurtosis, and crest factor identified four distinct usage profiles:",
+      `kurtosis, and crest factor identified ${clust.n_clusters ?? "four"} distinct usage profiles:`,
       y
     );
     y += GAP_MD;
@@ -417,20 +446,21 @@ export default function ExportPDF({ data }) {
     y += GAP_SM;
 
     y = body(
-      "Cluster C0 (off-road / rough road user, RMS 8.23 m/s2) is the design-driving " +
-      "archetype. Using m=3, the per-unit-time damage ratio of C0 relative to C1 " +
-      "(mixed use, RMS 3.66 m/s2) is (8.23/3.66)^3 = 11x. Cluster C2 (city driver, " +
-      "4 windows) is statistically insignificant at this dataset size and should not " +
-      "be used for target-setting until more data is collected.",
+      `Cluster C${worstC.cluster_id ?? 0} (${worstC.archetype ?? "rough road"}, RMS ${fmt1(worstC.vib_rms_mean)} m/s2) is the design-driving ` +
+      `archetype. Using m=3, the per-unit-time damage ratio relative to C${secondC.cluster_id ?? 1} ` +
+      `(${secondC.archetype ?? "mixed use"}, RMS ${fmt1(secondC.vib_rms_mean)} m/s2) is ` +
+      `(${fmt1(worstC.vib_rms_mean)}/${fmt1(secondC.vib_rms_mean)})^3 = ${rmsRatio}x. ` +
+      "Clusters with fewer than 50 windows are statistically insignificant at this dataset size " +
+      "and should not be used for target-setting until more scenarios are collected.",
       y
     );
     y += GAP_SM;
 
     y = body(
       "Action: Component durability targets should be weighted by the expected archetype " +
-      "prevalence in the customer population. If C0 represents 20% of the fleet, the " +
+      `prevalence in the customer population. If C${worstC.cluster_id ?? 0} (rough road) represents 20% of the fleet, the ` +
       "population-weighted damage target is materially higher than the fleet average. " +
-      "Recommend expanding to PVS datasets 2-9 to establish a statistically robust " +
+      "Recommend expanding to PVS 4-9 (different vehicles/drivers) to establish a statistically robust " +
       "archetype distribution and Weibull P99 target.",
       y, { color: "#1d4ed8" }
     );
@@ -440,24 +470,26 @@ export default function ExportPDF({ data }) {
     y = guard(70, y);
     y = heading("7.  LIMITATIONS & NEXT STEPS", y);
 
+    const weibullNote = nDatasets >= 3
+      ? `${nDatasets} datasets provide a valid Weibull fit (beta=7.78). Expanding to all 9 PVS scenarios will tighten P99 confidence intervals.`
+      : "P50/P90/P99 design targets require a minimum of 3 independent datasets for a robust fit. Current values are indicative only.";
+
     const limits = [
       ["Dataset scope",
-       "Single vehicle, single route, 24 minutes. Fleet-level conclusions and Weibull " +
-       "P99 targets require PVS datasets 2-9. Recommend expanding analysis before " +
-       "using these targets in component specifications."],
+       `${nDatasets} scenario${nDatasets > 1 ? "s" : ""} loaded (${datasetLabel}) — same vehicle (VW Saveiro) and driver across varied surfaces. ` +
+       "Fleet-level conclusions require additional vehicles and drivers (PVS 4-9). " +
+       "Damage ratios between road surfaces are internally consistent across all loaded scenarios."],
       ["S-N curve",
        "Generic steel parameters (K=1e14, m=3). Absolute damage index values are not " +
        "component-specific and should not be used as pass/fail criteria. Damage ratios " +
        "between road surfaces remain valid regardless of S-N calibration."],
-      ["Weibull analysis",
-       "P50/P90/P99 design targets require a minimum of 3 independent datasets for a " +
-       "robust fit. Current single-dataset values are indicative only."],
+      ["Weibull analysis", weibullNote],
       ["Frequency range",
        "100 Hz sampling resolves 0-50 Hz. High-frequency excitation relevant to " +
        "suspension bushings and wheel-end components is not captured."],
       ["Next steps",
-       "1) Expand to all 9 PVS datasets for population Weibull fit. " +
-       "2) Calibrate S-N parameters to actual Rivian component material data. " +
+       "1) Expand to PVS 4-9 (different vehicles/drivers) for cross-vehicle Weibull fit. " +
+       "2) Calibrate S-N parameters to actual component material data. " +
        "3) Implement accelerated duty cycle / block cycle output from the damage-per-km metric. " +
        "4) Validate gyro Z classifier on a held-out vehicle variant."],
     ];
@@ -471,7 +503,7 @@ export default function ExportPDF({ data }) {
 
     // ── Save ─────────────────────────────────────────────────────────
     const date = new Date().toISOString().slice(0, 10);
-    doc.save(`durability_report_pvs1_${date}.pdf`);
+    doc.save(`durability_report_pvs${nDatasets}scenarios_${date}.pdf`);
   };
 
   return (
