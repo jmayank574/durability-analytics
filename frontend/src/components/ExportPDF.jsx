@@ -339,11 +339,12 @@ export default function ExportPDF({ data }) {
 
     topFeats.forEach((f, i) => {
       const name = f.feature
-        .replace("acc_z_below_suspension_demean__", "Below-susp Z  ")
-        .replace("acc_z_above_suspension_demean__", "Above-susp Z  ")
-        .replace("gyro_z_below_suspension__",       "Gyro Z  ")
-        .replace("acc_y_below_suspension__",        "Lateral Y  ")
-        .replace("acc_x_below_suspension__",        "Fore-aft X  ");
+        .replace("diff_z_below_suspension_demean__", "LR Asymmetry Z  ")
+        .replace("acc_z_below_suspension_demean__",  "Below-susp Z  ")
+        .replace("acc_z_above_suspension_demean__",  "Above-susp Z  ")
+        .replace("gyro_z_below_suspension__",        "Gyro Z  ")
+        .replace("acc_y_below_suspension__",         "Lateral Y  ")
+        .replace("acc_x_below_suspension__",         "Fore-aft X  ");
       y = kv(`${i+1}.  ${name}`, `${(f.importance*100).toFixed(1)}%`, y,
              { labelColor: "#374151", valueColor: "#374151" });
     });

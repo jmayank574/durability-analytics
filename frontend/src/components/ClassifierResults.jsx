@@ -87,10 +87,12 @@ export default function ClassifierResults({ data }) {
         <div className="space-y-1.5">
           {topFeats.map((feat, i) => {
             const name = feat.feature
-              .replace("acc_z_below_suspension_demean__", "↓susp·")
-              .replace("acc_z_above_suspension_demean__", "↑susp·")
-              .replace("gyro_z_below_suspension__", "gyro·")
-              .replace("acc_y_below_suspension__", "acc_y·");
+              .replace("diff_z_below_suspension_demean__", "Δz·")
+              .replace("acc_z_below_suspension_demean__",  "↓susp·")
+              .replace("acc_z_above_suspension_demean__",  "↑susp·")
+              .replace("gyro_z_below_suspension__",        "gyro·")
+              .replace("acc_y_below_suspension__",         "acc_y·")
+              .replace("acc_x_below_suspension__",         "acc_x·");
             const pct = (feat.importance * 100).toFixed(1);
             return (
               <div key={i} className="flex items-center gap-2">
