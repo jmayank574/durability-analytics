@@ -51,12 +51,13 @@ def load_pvs_dataset(config: dict, verbose: bool = True) -> dict:
 
         label_path = raw_dir / f"{prefix}dataset_labels.csv"
         gps_path   = raw_dir / f"{prefix}dataset_gps.csv"
+        right_path = raw_dir / f"{prefix}dataset_gps_mpu_right.csv"
 
         if not label_path.exists():
             print(f"  Warning: no labels file for {dataset_id}, skipping")
             continue
 
-        df = _load_and_merge(mpu_path, label_path, gps_path, dataset_id)
+        df = _load_and_merge(mpu_path, label_path, gps_path, dataset_id, right_path)
         datasets[dataset_id] = df
 
         if verbose:
@@ -74,15 +75,36 @@ def _load_and_merge(
     label_path: Path,
     gps_path: Path,
     dataset_id: str,
+    right_path: Path = None,
 ) -> pd.DataFrame:
     """
     Load and merge MPU sensor data with road labels.
     - Decodes one-hot encoded labels back to readable strings
+    - Averages left + right vertical Z channels when right sensor is available
     - Removes gravity offset from vertical accelerometer channels
     - Creates primary fatigue signal (acc_z below suspension, de-meaned)
     """
     # Load sensor data
     mpu    = pd.read_csv(mpu_path)
+
+    # Average left + right Z channels if right sensor file exists
+    if right_path is not None and right_path.exists():
+        mpu_right = pd.read_csv(right_path)
+        min_len   = min(len(mpu), len(mpu_right))
+        mpu       = mpu.iloc[:min_len].reset_index(drop=True)
+        mpu_right = mpu_right.iloc[:min_len].reset_index(drop=True)
+        z_cols = [
+            "acc_z_below_suspension",
+            "acc_z_above_suspension",
+            "acc_z_dashboard",
+        ]
+        for col in z_cols:
+            if col in mpu.columns and col in mpu_right.columns:
+                mpu[col] = (mpu[col] + mpu_right[col]) / 2
+        print(f"  [{dataset_id}] Left + right Z channels averaged")
+    else:
+        print(f"  [{dataset_id}] Right sensor not found — using left channel only")
+
     labels = pd.read_csv(label_path)
 
     # Align lengths (should be identical but guard against off-by-one)

@@ -1,7 +1,7 @@
 data:
   raw_dir: "data/raw"
   processed_dir: "data/processed"
-  exports_dir: "data/exports"
+  exports_dir: "frontend/public/data"
   sample_rate_hz: 100
   resample_hz: 100
 

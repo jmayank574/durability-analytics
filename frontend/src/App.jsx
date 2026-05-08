@@ -33,7 +33,7 @@ export default function App() {
               Durability Analytics Platform
             </h1>
             <p className="text-slate-400 text-xs mt-0.5">
-              PVS Dataset · 144,036 samples · 100 Hz · 24 min
+              PVS Dataset · {data.fleet?.datasets?.length ?? 1} scenario{(data.fleet?.datasets?.length ?? 1) > 1 ? "s" : ""} · VW Saveiro · Driver 1 · 100 Hz
             </p>
           </div>
           <div className="flex gap-2 items-center">
@@ -43,7 +43,7 @@ export default function App() {
             </span>
             <span className="px-3 py-1 bg-slate-800 text-slate-400
                            border border-slate-700 rounded-full text-xs">
-              PVS 1 · 144,036 samples · 24 min
+              {data.fleet?.n_points?.toLocaleString() ?? "—"} GPS points · {data.fleet?.datasets?.length ?? 1} route{(data.fleet?.datasets?.length ?? 1) > 1 ? "s" : ""}
             </span>
             <ExportPDF data={data} />
           </div>

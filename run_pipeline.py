@@ -216,16 +216,6 @@ def main():
         windows, config, damage_col="damage_index"
     )
     save_ml_export(ml_export, config)
-
-    print(f"\n  Classifier accuracy : "
-          f"{ml_export['classifier']['accuracy']:.1%}")
-    print(f"  CV accuracy         : "
-          f"{ml_export['classifier']['cv_accuracy_mean']:.1%} "
-          f"± {ml_export['classifier']['cv_accuracy_std']:.1%}")
-    print(f"  Damage regressor R² : "
-          f"{ml_export['regressor'].get('r2_score', 'N/A')}")
-    print(f"  Archetypes found    : "
-          f"{ml_export['clustering']['n_clusters']}")
     print(f"  Completed in {elapsed(t)}")
 
     # ---------------------------------------------------------- #

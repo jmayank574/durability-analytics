@@ -406,7 +406,13 @@ def build_ml_export(
 
     # ---- Classifier ----
     print("\n[1/3] Road surface classifier")
-    X, y, feat_names = prepare_features(windows, target_col="label")
+    clf_drop = [
+        "label", "window_start", "time_sec", "dataset_id",
+        "has_speed_bump",
+        "speed_mean",    # driver behaviour — not a road surface property
+        "damage_index",  # derived from road type — would be circular leakage
+    ]
+    X, y, feat_names = prepare_features(windows, target_col="label", drop_cols=clf_drop)
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
