@@ -100,8 +100,13 @@ def _load_and_merge(
         ]
         for col in z_cols:
             if col in mpu.columns and col in mpu_right.columns:
+                # Differential before averaging — captures left-right asymmetry
+                # Cobblestone: each stone hits one wheel → high differential
+                # Asphalt: uniform surface → differential near zero
+                diff_col = col.replace("acc_z_", "diff_z_")
+                mpu[diff_col] = mpu[col] - mpu_right[col]
                 mpu[col] = (mpu[col] + mpu_right[col]) / 2
-        print(f"  [{dataset_id}] Left + right Z channels averaged")
+        print(f"  [{dataset_id}] Left + right Z averaged, differential features added")
     else:
         print(f"  [{dataset_id}] Right sensor not found — using left channel only")
 
@@ -171,6 +176,16 @@ def _load_and_merge(
         'acc_z_dashboard',
     ]
     for col in z_channels:
+        if col in mpu.columns:
+            mpu[f'{col}_demean'] = mpu[col] - mpu[col].mean()
+
+    # Demean differential channels (removes static sensor offset / vehicle tilt bias)
+    diff_channels = [
+        'diff_z_below_suspension',
+        'diff_z_above_suspension',
+        'diff_z_dashboard',
+    ]
+    for col in diff_channels:
         if col in mpu.columns:
             mpu[f'{col}_demean'] = mpu[col] - mpu[col].mean()
 

@@ -22,6 +22,10 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+# Force UTF-8 output on Windows (avoids cp1252 errors with Unicode chars)
+if sys.stdout.encoding != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+
 warnings.filterwarnings("ignore")
 
 # Make sure src/ is importable
@@ -67,7 +71,7 @@ def main():
 
     banner("Rivian Durability Analytics Pipeline")
     print(f"  Config loaded from config.yaml")
-    print(f"  Exports → {config['data']['exports_dir']}/")
+    print(f"  Exports -> {config['data']['exports_dir']}/")
 
     # ---------------------------------------------------------- #
     # Module 1: Data Ingestion
@@ -174,40 +178,35 @@ def main():
 
     print(f"  Windows: {len(windows):,} | Features: {len(windows.columns)}")
 
-    # Add damage index per window
+    # Add damage index per window — computed per dataset so labels are correct
     print(f"  Computing per-window damage index...")
-    sn_k      = float(config["fatigue"]["sn_k"])
-    sn_m      = float(config["fatigue"]["sn_m"])
-    threshold = float(config["fatigue"]["damage_threshold"])
-
-    # Use first dataset for damage computation
-    primary_df   = list(datasets.values())[0]
-    signal       = primary_df["acc_z_primary"].dropna().values
-    road_types   = primary_df["road_type"].values
-    window_size  = config["ml"]["window_size_samples"]
-    stride       = config["ml"]["window_stride_samples"]
+    sn_k        = float(config["fatigue"]["sn_k"])
+    sn_m        = float(config["fatigue"]["sn_m"])
+    threshold   = float(config["fatigue"]["damage_threshold"])
+    window_size = config["ml"]["window_size_samples"]
+    stride      = config["ml"]["window_stride_samples"]
 
     damage_records = []
-    for start in range(0, len(signal) - window_size, stride):
-        end    = start + window_size
-        window = signal[start:end]
-        rf     = rainflow_count(window)
-        if rf["cycles"]:
-            miners = miners_rule(rf["cycles"], sn_k, sn_m, threshold)
-            dmg    = miners["damage_index"]
-        else:
-            dmg = 0.0
-        damage_records.append({
-            "window_start":  start,
-            "damage_index":  dmg,
-        })
+    for dataset_id, df in datasets.items():
+        signal = df["acc_z_primary"].dropna().values
+        for start in range(0, len(signal) - window_size, stride):
+            window = signal[start : start + window_size]
+            rf     = rainflow_count(window)
+            dmg    = miners_rule(rf["cycles"], sn_k, sn_m, threshold)["damage_index"] \
+                     if rf["cycles"] else 0.0
+            damage_records.append({
+                "dataset_id":   dataset_id,
+                "window_start": start,
+                "damage_index": dmg,
+            })
+        print(f"    {dataset_id}: {len(signal)//stride:,} windows computed")
 
     damage_df = pd.DataFrame(damage_records)
 
-    # Merge damage into windows
-    if "window_start" in windows.columns:
+    # Merge on (dataset_id, window_start) — each dataset has its own window_start range
+    if "window_start" in windows.columns and "dataset_id" in windows.columns:
         windows = windows.merge(
-            damage_df, on="window_start", how="left"
+            damage_df, on=["dataset_id", "window_start"], how="left"
         )
         windows["damage_index"] = windows["damage_index"].fillna(0)
 
@@ -252,26 +251,28 @@ def _build_fleet_map(
     """
     import json
 
+    # Build per-dataset damage lookup for O(1) access: {dataset_id: {window_start: damage}}
+    damage_lookup = (
+        damage_df.groupby("dataset_id")
+        .apply(lambda g: dict(zip(g["window_start"], g["damage_index"])))
+        .to_dict()
+    )
+
     all_points = []
+    stride = config["ml"]["window_stride_samples"]
 
     for dataset_id, df in datasets.items():
         if "latitude" not in df.columns or "longitude" not in df.columns:
             continue
 
-        # Sample every 10th row for map performance
-        df_sample = df.iloc[::50].copy().reset_index(drop=True)
-
-        # Attach damage — approximate by matching time index
-        window_size = config["ml"]["window_size_samples"]
-        stride      = config["ml"]["window_stride_samples"]
+        # Sample every 50th row for map performance
+        df_sample   = df.iloc[::50].copy().reset_index(drop=True)
+        ds_damage   = damage_lookup.get(dataset_id, {})
 
         for i, row in df_sample.iterrows():
-            orig_idx    = i * 10
-            window_idx  = orig_idx // stride
-            damage      = 0.0
-
-            if window_idx < len(damage_df):
-                damage = float(damage_df.iloc[window_idx]["damage_index"])
+            orig_idx     = i * 50          # each row in df_sample = 50 raw rows
+            window_start = (orig_idx // stride) * stride   # snap to nearest window
+            damage       = ds_damage.get(window_start, 0.0)
 
             point = {
                 "lat":        round(float(row["latitude"]),  6),
@@ -297,7 +298,7 @@ def _build_fleet_map(
         json.dump(export, f, indent=2)
 
     size_kb = out_path.stat().st_size / 1024
-    print(f"  Fleet map: {len(all_points):,} GPS points → "
+    print(f"  Fleet map: {len(all_points):,} GPS points -> "
           f"{out_path.name} ({size_kb:.0f} KB)")
 
 

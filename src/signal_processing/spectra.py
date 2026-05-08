@@ -372,6 +372,7 @@ def build_feature_windows_export(
         "acc_x_below_suspension",
         "acc_y_below_suspension",
         "gyro_z_below_suspension",
+        "diff_z_below_suspension_demean",  # left-right asymmetry — road texture discriminator
     ]
 
     all_windows = []
